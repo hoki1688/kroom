@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harga Kamar</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 1rem;
+      max-width: 600px;
+      margin: auto;
+    }
+
+    .tab-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .tab {
+      padding: 0.5rem 1rem;
+      background: #eee;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .tab:hover {
+      background: #ccc;
+    }
+
+    .tab.active {
+      background: #007bff;
+      color: white;
+      font-weight: bold;
+    }
+
+    .room-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      transition: transform 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+
+    .room-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      background-color: #f9f9f9;
+    }
+
+    .room-image {
+      margin-top: 1rem;
+      display: none;
+    }
+
+    .room-image img {
+      width: 100%;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Harga Kamar</h2>
+  <div class="tab-container" id="dateTabs"></div>
+  <div id="result"></div>
+
+  <script>
+    const apiBase = 'https://script.google.com/macros/s/AKfycbwn9P3FanH3nFcKgGE1KqSU52i9WAxvJvff-nfFZktfc7SVpgt_WbyhhLRu701g-iLY/exec';
+
+    function formatDate(date) {
+      return date.toLocaleDateString('id-ID');
+    }
+
+    function getFormattedDateForParam(date) {
+      return date.toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+
+    function generateDateTabs() {
+      const container = document.getElementById('dateTabs');
+      container.innerHTML = '';
+      const today = new Date();
+
+      for (let i = -1; i <= 5; i++) {
+        const date = new Date();
+        date.setDate(today.getDate() + i);
+        const tab = document.createElement('div');
+        tab.className = 'tab';
+        tab.textContent = formatDate(date);
+        tab.onclick = () => handleDateClick(date, tab);
+        container.appendChild(tab);
+
+        if (i === 0) tab.click();
+      }
+    }
+
+    async function handleDateClick(date, tabElement) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tabElement.classList.add('active');
+
+      const resultContainer = document.getElementById('result');
+      resultContainer.innerHTML = '<p>Memuat data...</p>';
+
+      const formatted = getFormattedDateForParam(date);
+
+      try {
+        const response = await fetch(`${apiBase}?date=${formatted}`);
+        const data = await response.json();
+
+        resultContainer.innerHTML = '';
+
+        if (data.error) {
+          resultContainer.innerHTML = `<p style="color:red">${data.error}</p>`;
+          return;
+        }
+
+        const roomLabels = {
+          singleRoom: 'Single Room',
+          standardRoom: 'Standard Room',
+          deluxeRoom: 'Deluxe Room',
+          suiteRoom: 'Suite Room',
+          familyRoom: 'Family Room',
+          standardTanpaAC: 'Standard Tanpa AC'
+        };
+
+        Object.entries(data.prices).forEach(([roomType, priceData]) => {
+          const roomName = roomLabels[roomType] || roomType;
+
+          const card = document.createElement('div');
+          card.className = 'room-card';
+          card.innerHTML = `
+            <h3>${roomName}</h3>
+            <p><strong>Tunai:</strong> Rp ${priceData.tunai.toLocaleString('id-ID')}</p>
+            <p><strong>QRIS:</strong> Rp ${priceData.qris.toLocaleString('id-ID')}</p>
+            <div class="room-image">
+              ${priceData.image ? `<img src="${priceData.image}" alt="KODE PEMBAYARAN QRIS ${roomName}" loading="lazy">` : '<p style="color:gray">Gambar tidak tersedia</p>'}
+            </div>
+          `;
+		  
+		  // Debugging log untuk memastikan URL gambar yang diteruskan
+          console.log('Room Type:', roomName, 'Image URL:', priceData.image);  // Log image URL untuk debugging
+
+
+          // Toggle gambar saat diklik
+          card.addEventListener('click', () => {
+          // Sembunyikan semua gambar terlebih dahulu
+          document.querySelectorAll('.room-image').forEach(div => {
+            div.style.display = 'none';
+          });
+
+          // Tampilkan hanya gambar dari kamar yang diklik
+          const imageDiv = card.querySelector('.room-image');
+          imageDiv.style.display = 'block';
+        });
+
+
+          resultContainer.appendChild(card);
+        });
+
+      } catch (err) {
+        resultContainer.innerHTML = `<p style="color:red">Gagal memuat data.</p>`;
+        console.error('Fetch error:', err);
+      }
+    }
+
+    generateDateTabs();
+  </script>
+</body>
+
+</html>
